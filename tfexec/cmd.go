@@ -1,7 +1,9 @@
 package tfexec
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -113,6 +115,25 @@ func (tf *Terraform) buildTerraformCmd(ctx context.Context, args ...string) *exe
 	tf.logger.Printf("[INFO] running Terraform command: %s", cmdString(cmd))
 
 	return cmd
+}
+
+func (tf *Terraform) runTerraformCmdJSON(cmd *exec.Cmd, v interface{}) error {
+	var outbuf = bytes.Buffer{}
+
+	{
+		var stdout io.Writer = &outbuf
+		if cmd.Stdout != nil {
+			stdout = io.MultiWriter(cmd.Stdout, stdout)
+		}
+		cmd.Stdout = stdout
+	}
+
+	err := tf.runTerraformCmd(cmd)
+	if err != nil {
+		return err
+	}
+
+	return json.Unmarshal(outbuf.Bytes(), v)
 }
 
 func (tf *Terraform) runTerraformCmd(cmd *exec.Cmd) error {
